@@ -15,9 +15,8 @@ As you know from the my [previous]({{ site.baseurl }}{% post_url 2018-04-24-acce
 
 Initially, the problem I'm trying to solve was sounded like this: threads that train the model (workers) are highly optimized and therefore are blocked on `Queue.get` call [here](https://github.com/RaRe-Technologies/gensim/blob/develop/gensim/models/base_any2vec.py#L90) and wait until data producer threads (producers) fill the queue [here](https://github.com/RaRe-Technologies/gensim/blob/develop/gensim/models/base_any2vec.py#L125).
 
-In order to fix this, *multistream API* was proposed. The main idea is to read data in many threads instead of using single thread (call several [job producers](https://github.com/RaRe-Technologies/gensim/blob/develop/gensim/models/base_any2vec.py#L125) in parallel on different input streams). Then, user could split large data file into several parts and pass them as *input streams* to the model. Sounds great, but we can already see one subtle thing here:
+In order to fix this, *multistream API* was proposed. The main idea is to read data in many threads instead of using single thread (call several [job producers](https://github.com/RaRe-Technologies/gensim/blob/develop/gensim/models/base_any2vec.py#L125) in parallel on different input streams). Then, user could split large data file into several parts and pass them as *input streams* to the model.
 
-> Python doesn't allow to execute CPU-bound operations in parallel (it uses GIL, which prevents this). Therefore, if our `_job_producer` loop is more CPU-bound than IO-bound, our multistream optimization may not lead to performance boost.
 
 ## Single stream benchmarking
 
@@ -47,9 +46,12 @@ But increasing number of workers to 8, 10, 12, 14 shows the problem with workers
 
 ## Multistream API and word2vec main discovery
 
-I implemented a first version of multistream API (just modified `BaseAny2VecModel._train_epoch` method to [this](https://gist.github.com/persiyanov/0a8ca3d9091775bd136cfe6e4674e376)) one). 
+I implemented a first version of multistream API (just modified `BaseAny2VecModel._train_epoch` method to [this](https://gist.github.com/persiyanov/0a8ca3d9091775bd136cfe6e4674e376) one). 
 
-But [benchmarks](https://gist.github.com/persiyanov/1009e2a4548ac71efa59a547d336fe4b) are not as good as they were supposed to be. Moreover, in some cases __multiple streams hurts__ the performance in compare to single stream. This proves that `_job_producer` is actually CPU-bound, not IO-bound. So, when we create many producers, because of GIL, less resources are given to `_worker_loop` threads and performance doesn't increase.
+But [benchmarks](https://gist.github.com/persiyanov/1009e2a4548ac71efa59a547d336fe4b) are not as good as they were supposed to be. Moreover, in some cases __multiple streams hurts__ the performance in compare to single stream. And this is the case because python doesn't allow to execute CPU-bound operations in parallel (it uses GIL, which prevents this). Therefore, if our `_job_producer` loop is more CPU-bound than IO-bound, our multistream optimization may not lead to performance boost.
+
+
+This proves that `_job_producer` is actually CPU-bound, not IO-bound. So, when we create many producers, because of GIL, less resources are given to `_worker_loop` threads and performance doesn't increase.
 
 While I was fighting all these multithreading subtleties and resource contention things, I decided to run an experiment which doesn't have any *job producers* at all but only *worker threads*. I wanted to measure maximum word2vec speed (no IO, only CPU model updates) which is an upper bound for my results in this project. In order to do this, I modified the code of `_train_epoch` to fill the queue with all data at first and then run worker threads (see the code [here](https://gist.github.com/persiyanov/bceb706b2d617ebde69e11774fe8dc16)). Here are the results:
 
