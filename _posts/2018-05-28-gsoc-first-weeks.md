@@ -46,9 +46,33 @@ But increasing number of workers to 8, 10, 12, 14 shows the problem with workers
 
 ## Multistream API and word2vec main discovery
 
-I implemented a first version of multistream API (just modified `BaseAny2VecModel._train_epoch` method to [this](https://gist.github.com/persiyanov/0a8ca3d9091775bd136cfe6e4674e376) one). 
+I implemented a first version of multistream API (just modified `BaseAny2VecModel._train_epoch` method to [this](https://gist.github.com/persiyanov/0a8ca3d9091775bd136cfe6e4674e376) one). __See full results [here](https://gist.github.com/persiyanov/1009e2a4548ac71efa59a547d336fe4b)__. 
 
-But [benchmarks](https://gist.github.com/persiyanov/1009e2a4548ac71efa59a547d336fe4b) are not as good as they were supposed to be. Moreover, in some cases __multiple streams hurts__ the performance in compare to single stream. And this is the case because python doesn't allow to execute CPU-bound operations in parallel (it uses GIL, which prevents this). Therefore, if our `_job_producer` loop is more CPU-bound than IO-bound, our multistream optimization may not lead to performance boost.
+### Table for _1 input stream (singlestream case), window = 5_:
+
+| # workers | total time (sec) | avg queue size | processing speed (words per sec) | sum cpu load (%) |
+|:---------:|:----------------:|:--------------:|:--------------------------------:|:----------------:|
+|     1     |      1030.84     |      1.409     |              175923              |      105.96      |
+|     4     |      278.43      |      6.974     |              651315              |      400.33      |
+|     8     |      255.39      |      0.019     |              710073              |      453.48      |
+|     10    |      256.34      |      0.023     |              707447              |      450.06      |
+|     12    |      255.86      |      0.023     |              708778              |      453.84      |
+|     14    |      258.83      |      0.023     |              700652              |      450.32      |
+
+
+### Table for _2 input streams, window = 5_:
+
+| # workers | total time (sec) | avg queue size | processing speed (words per sec) | sum cpu load (%) |
+|:---------:|:----------------:|:--------------:|:--------------------------------:|:----------------:|
+|     1     |      1047.49     |      1.393     |              172963              |      106.34      |
+|     4     |      298.42      |      6.477     |              606627              |      390.23      |
+|     8     |      294.28      |      0.158     |              615720              |      400.45      |
+|     10    |      301.32      |      0.107     |              599463              |      396.61      |
+|     12    |      299.65      |      0.108     |              602971              |      396.26      |
+|     14    |      304.75      |      0.099     |              591718              |      391.84      |
+
+
+It turns out that multistream is not as good as it was supposed to be. Moreover, in some cases __multiple streams hurts__ the performance in compare to single stream. And this is the case because python doesn't allow to execute CPU-bound operations in parallel (it uses GIL, which prevents this). Therefore, if our `_job_producer` loop is more CPU-bound than IO-bound, our multistream optimization may not lead to performance boost.
 
 
 This proves that `_job_producer` is actually CPU-bound, not IO-bound. So, when we create many producers, because of GIL, less resources are given to `_worker_loop` threads and performance doesn't increase.
