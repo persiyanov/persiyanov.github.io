@@ -17,5 +17,9 @@ Six hardworking weeks have passed since my last post and now, right before the s
 Also, I've optimized vocabulary building using `multiprocessing` module and multistream. See my [pull request](https://github.com/RaRe-Technologies/gensim/pull/2078).
 
 
+# Plan for the last month
+
+For the last month there is a lot of word to deliver my feature to **develop-branch ready stage**.
+
 
 See you in the next blogpost! Feel free to reach me via telegram `@persiyanov` or email `dmitry at persiyanov dot gmail dot com`.
