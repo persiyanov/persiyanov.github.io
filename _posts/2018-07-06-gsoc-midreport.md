@@ -22,4 +22,4 @@ Also, I've optimized vocabulary building using `multiprocessing` module and mult
 For the last month there is a lot of work to deliver my feature to **develop-branch ready stage**.
 
 
-See you in the next blogpost! Feel free to reach me via telegram `@persiyanov` or email `dmitry at persiyanov dot gmail dot com`.
+See you in the next blogpost! Feel free to reach me via telegram `@persiyanov` or email `dmitry dot persiyanov at gmail dot com`.
